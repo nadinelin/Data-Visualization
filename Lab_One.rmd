@@ -1,0 +1,195 @@
+---
+title: 'Lab Report 1'
+author: "Zhian Lin, Sonnelly Cheong"
+geometry: margin=.75in
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+    theme: cosmo
+header-includes:
+- \usepackage{graphicx}
+- \usepackage{color}
+graphics: yes
+fontsize: 11pt
+---
+
+```{r}
+## Read data here
+spotify <- read.csv("spotify_songs.csv", header=TRUE)
+
+## call required libraries 
+library(ggplot2)
+library(tidyverse)
+library('ggridges')
+
+## Set theme to something else (optional)
+theme_set(theme_minimal())
+```
+
+# Describe dataset:
+Dataset description:
+A large dataset from Spotify. Containing information about 32000 songs; album, artist, genre and subgenre together with extracted properties of songs using an ML algorithm (danceability, tempo, liveness, instrumentalness, key, etc.).
+
+
+```{r}
+str(spotify)
+```
+
+The dataset contains information for 32833 songs (subject) and the data is organized in 23 columns (variables).
+By using the head function I am able to see that exact column names and how the data is being organized. From this I can tell that the whether the variable is categorical or numerical. Initially, out of 23 variables, 10 of them are categorical variables and 13 of them are numerical 
+
+## Categorical variables contain: 
+track_id, track_name, track_artist, track_album_id, track_album_name, track_album_release_date, playlist_name, playlist_id, playlist_genre, playlist_subgenre.
+
+## Numerical variables contain: 
+track_popularity, danceability, energy, key, loudness, mode, speechiness, acousticness, instrumentalness, liveness, valence, tempo, duration_ms
+
+However the two variables key and mode that are initially being identified as numerical variables should be categorical. Since key identifies and describes the pitch of a song and modes are a type of scale with distinct melodic characteristics. Therefore, convert to factor. 
+
+```{r}
+spotify$key <- as.factor(spotify$key)
+spotify$mode <- as.factor(spotify$mode)
+```
+after this convertion there will be 12 categorical and 11 numerical variables.
+
+### 1. Histogram & Density
+Variable selected: danceability (numerical), playlist_genre (categorical)
+```{r, echo = TRUE}
+ggplot(data = spotify) +
+  geom_histogram(aes(x = danceability), fill = 'antiquewhite', colour = 'bisque4')
+```
+
+> from this histogram we were able to observe that the danceability of the 32080 songs are concentrated at the danceability of 0.50 - 0.875. There are around 3000 songs with the danceability of  around 0.75. From this distribution of data I can conclude that a lot of track is suitable fr dancing based on a combination of musical elements including tempo, rythm stability, beat strength, and overall regularity. 
+
+```{r}
+ggplot(spotify) + 
+  geom_density(data= subset(spotify, playlist_genre = 'pop'), aes(x = danceability, 
+    y = ..count..), fill="lightcyan2", colour='gray47') +
+  geom_density(data= subset(spotify, playlist_genre = 'r&b'), aes(x = danceability,
+    y = - ..count..), fill="steelblue", colour='gray47')
+
+```
+
+> From this back to back density graph I can observe that for both playlist genres of r&b and pop the danceability are both concentrated at around 0.75 meaning that both playlist genres are danceable. 
+
+
+\pagebreak
+
+### 2. Boxplot
+```{r}
+
+# Selecting loudness as the numeric value 
+# Selecting playlist_genre as the categorical value 
+
+playlist_genres <- unique(spotify$playlist_genre)
+medians  <- sapply(playlist_genres, function(z) median(spotify$loudness
+    [spotify$playlist_genre == z]))
+    ord <- order(medians)  # the order
+
+spotify$playlist_genre <- factor(spotify$playlist_genre , levels=playlist_genres[ord])
+
+ggplot(spotify, aes(y=playlist_genre, x=loudness, color=playlist_genre)) +
+  geom_jitter(alpha=.4, position = position_jitter(.2)) +
+  geom_boxplot(color='black',fill=adjustcolor('grey90',.3),outlier.alpha = 0) +
+  theme_light() +
+  theme(legend.position = 'none')
+```
+Boxplot & Jitter Plot 
+We can see the distribution of loudness for each playlist genre  The box and whiskers give us information about the different quartiles, while the jitter plot gives us a sense of how many playlists have a certain loudness with a given genre.  As displayed on the plots, there are some outliers.  There are particularly more outliers for the latin playlist genre.  The median for loudness of each playlist genre appears to fall somewhere in between -10 and -5db.  The edm genre has the highest median followed by latin, pop, rap, rock, and r&b.  The rock playlist genre has the largest interquartile range.  
+
+```{r}
+ggplot(spotify, aes(y=playlist_genre, x=loudness, fill=playlist_genre)) +
+  geom_density_ridges() +
+  theme_minimal() +
+  theme(legend.position = 'none')
+  ggtitle('Density Ridges Plot for Loudness')
+  
+```
+Density Plot
+We can see the continuous distribution of loudness for each playlist genre.  Although the typical range for loudness is between -60 and 0db, we can see that majority fo the loudness values are greater than -20db.  We can observe that the peak of each distribution is typically in between -10 and 0.  The concentration of values for all genres appear to lie between -10 and 0db.  The peak of the distribution for the r&b genre appears to be at the lowest loudness.  The steepness of each curve can also be observed.  For the rock genre, it has a 'wider' distribution and so there is a larger proportion of rock songs that cover a wider range.  
+
+\pagebreak
+
+### 3. Aggregating Data
+#### Categorical variable selected:
+variable 1: track_artist
+variable 2: playlist_genre
+numerical value: track_release_date
+
+#### part 1
+```{r}
+# select
+select(spotify, track_artist) %>% group_by(track_artist) %>% summarize(Songs = n()) %>% head()
+select(spotify, playlist_genre) %>% group_by(playlist_genre) %>% summarize(Songs = n())
+```
+> After grouping the artist together and applied the summarize function we were able to see the amount of songs that a particular artist has had in this list. 
+> After applying the group by function to the playlist_genre, we were able to determine the total amount of songs distributed across each playlist.
+
+
+```{r}
+spotify %>%
+  rename(artist=track_artist, release_date= track_album_release_date) %>%
+  group_by(release_date, artist) %>%
+  summarize(track= n()) %>%
+  arrange(release_date)
+```
+> By applying the groupby, rename, summarize and arrange, I was able to see the release date of each song track in acsending order with with the artist name and the number of song track that they have released on that day which made into this list. 
+
+\pagebreak
+
+### 4. Visualizing Categorical Variables
+
+```{r}
+music_genre <- spotify %>%
+  rename(genre= playlist_genre, subgenre= playlist_subgenre) %>%
+  group_by(genre,subgenre) %>%
+  summarize(songs= n()) %>%
+  arrange(genre)
+
+music_genre
+```
+> This gives a detailed overview before the visualization of how each subgeneres is being distributed across individual genres. For example the genre lating has four subgenres under it they are latin hip hop with 1656 songs, latin pop with 1262 songs, reggaeton with 949 songs and tropical with 1288 songs.
+
+
+```{r}
+ggplot(music_genre, aes(y = genre, x = songs, fill = subgenre)) + 
+  geom_bar(stat = 'identity') 
+```
+```{r}
+ggplot(music_genre, aes(y = genre, x = songs, fill=subgenre)) + 
+  geom_bar(stat = 'identity', position='fill')
+```
+> From the above two graphs, we were able to observe the distributions of the subgeneres in the generes. For example for the rock genere is being spanned by four subgenres that are permanent wave, hip hop, classic rock and album rock. We can also tell the porportions that those subgenres are distributed within each genre. For example, in the genre edm, the four subgenres spreads out quit evenly with progressive elector house haveing a little bit more weight than the other subgenres. 
+
+## Ploting using stat(count)
+
+```{r}
+ggplot(spotify, aes(y = playlist_genre, x = stat(count), fill = playlist_subgenre)) + 
+  geom_bar() 
+```
+
+```{r}
+ggplot(spotify, aes(y = playlist_genre, x = stat(count)/nrow(spotify), 
+  fill=playlist_subgenre)) + 
+  geom_bar(position = 'fill')  
+```
+
+
+
+\pagebreak
+
+### 5. Other Visuals
+```{r}
+aggDat <- group_by(spotify, playlist_genre, mode) %>% summarise(track_id = n())
+
+ggplot(aggDat) +
+      geom_col(aes(x = 1, y = track_id, fill = mode), position = "fill") +
+      facet_wrap( ~ playlist_genre) + 
+      geom_text(aes(x = 0, y = 0, label = playlist_genre)) + 
+      coord_polar(theta = "y") +
+      theme_void() + 
+      theme(strip.background=element_blank(),
+          strip.text=element_blank())
+```
