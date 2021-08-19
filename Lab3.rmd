@@ -1,0 +1,167 @@
+---
+title: 'Lab Report 3'
+author: "Sonnelly Cheong, Zhian Lin"
+geometry: margin=.75in
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+    theme: cosmo
+header-includes:
+- \usepackage{graphicx}
+- \usepackage{color}
+graphics: yes
+fontsize: 11pt
+---
+
+```{r}
+## Read data here
+spotify <- read.csv("spotify_songs.csv", header=TRUE)
+
+## Call Required Libraries
+library(tidyverse)
+library('qqtest')
+library(gridExtra)
+library('ggExtra')
+
+## Set theme to something else (optional)
+theme_set(theme_minimal())
+```
+
+### 1.Central Limit Theorem
+
+```{r}
+g1 <- ggplot(spotify, aes(x=speechiness)) + 
+  geom_histogram(fill = 'dodgerblue4', colour='gray8')
+
+grid.arrange(g1)
+```
+> It is apparent that this continuous variable, speechiness is right skewed and therefore it is not in normal condition. 
+
+```{r}
+set.seed(156)
+
+Xbars <- sapply(1:300, function(i) mean(spotify$speechiness[sample(1:nrow(spotify), 200)]))
+Xbars <- data.frame(1:length(Xbars), Xbars)
+colnames(Xbars) <- c('GroupID', 'Xbar')
+Xbars
+```
+
+```{r}
+ggplot(Xbars, aes(x=Xbar)) + 
+  geom_histogram(fill='deepskyblue4',colour='gray8')
+```
+> The sample is now in normal distribution 
+
+```{r}
+qqtest(Xbars$Xbar) 
+```
+
+> The test result indicates that the it fits within the envelope therefor it is safe to conclude that it is now a normal distribution. 
+
+
+\pagebreak
+
+### 2. Comparing Two Variable 
+
+```{r}
+ggplot(spotify, aes(x =loudness, y=playlist_genre, colour = playlist_genre)) + 
+  geom_boxplot() + 
+  theme(legend.position = 'none')
+```
+
+> Boxplot of the continuous variable (energy) on the x-axis and the categorical variable (energy) on the y-axis
+
+```{r}
+sample1 <- subset(spotify, playlist_genre == 'pop')$loudness
+sample2 <- subset(spotify, playlist_genre == 'rap')$loudness
+```
+
+##### Hypothesis testing
+
+The first hypothesis:  $H_0: S^2_1 = S^2_2, S^2_1 - S^2_2 = 0$ tested as below:
+
+```{r}
+var.test(sample1, sample2)
+```
+> Reject the hypothesis that the variance of loudness in pop and rap are equal
+
+The second hypothesis: $H_0: S^2_1 \geq S^2_2$ tested as below:
+
+```{r}
+var.test(sample1, sample2, alternative = 'less')
+```
+> Reject the hypothesis that the variance of loudness in pop is greater than rap
+
+The third hypothesis: $H_0: S^2_1 \leq S^2_2$ tested as below:
+```{r}
+var.test(sample1, sample2, alternative = 'greater')
+```
+> Cannot reject the hypothesis that the variance of loudness in pop is less than rap
+
+\pagebreak
+
+### 3. Comparing two population means 
+
+The first hypothesis: $H_0: \mu_1 = \mu_2 \Rightarrow \mu_1 - \mu_2 = 0$ tested as below
+```{r}
+t.test(sample1,sample2, var.equal = F)
+```
+> Reject the hypothesis that the mean loudness in two playlist genres are equal.
+
+The second hypothesis: $H_0: \mu_1 - \mu_2 \geq 0$ tested as below:
+```{r}
+t.test(sample1,sample2, var.equal = F, alternative = 'less')
+```
+> Cannot reject the hypothesis that the mean loudness of pop is larger than the mean of rap
+
+The third hypothesis: $H_0: \mu_1 - \mu_2 \leq 0$ tested as below
+```{r}
+t.test(sample1,sample2, var.equal = F, alternative = 'greater')
+```
+> Reject the hypothesis that the mean loudness of pop is less than the mean loudness of rap
+
+\pagebreak
+
+## Question 4
+We are interested in the danceability in 4 genres and trying to test whether the population means are equal. If the ratio between total variability within groups is not statistically different from variability among groups, then we cannot reject the hypothesis that the means are equal.
+
+```{r}
+temp <- subset(spotify, playlist_genre %in% c('pop','rap','edm','rock'))
+medians <- temp %>% group_by(playlist_genre) %>% summarise(medians=median(danceability))
+
+temp$playlist_genre <- factor(temp$playlist_genre,
+  levels=medians$playlist_genre[order(medians$medians)])
+
+ggplot(temp, aes(x=danceability,y=playlist_genre, colour=playlist_genre)) + 
+  geom_boxplot(outlier.alpha = 0, fill=adjustcolor('grey50',.3), colour='black') +
+  geom_jitter(alpha=.05) + 
+  theme(legend.position = 'none')
+
+anova(lm(danceability ~ playlist_genre,data = temp))
+```
+The p-value is too small, so we reject the hypothesis that the four playlist genres have equal population means. 
+
+\pagebreak
+
+### Question 5
+```{r}
+temp <- subset(spotify, playlist_genre %in% c('pop','rap','edm','rock'))
+temp$musical_positiveness <- temp$valence > 0.5 
+
+ggplot(temp, aes(x=danceability, y=playlist_genre, colour=musical_positiveness)) + 
+  geom_boxplot() 
+```
+The valence describes the musical positiveness of a track.  A higher valence value means that a song conveys more positive feelings, while a lower valence value means that a song conveys more negative feelings.  Clearly, the valence effects the danceability.  When the musical positiveness is true (> 0.5) the median of the danceability for all playlist genres are higher.  The playlist genre also effects danceability.  If we compare the median of the danceabilities for the songs in a given playlist genre with a valence > 0.5, the order from highest to lowest danceability is rap, edm, pop, rock.  If we do this comparison for songs with a valence < 0.5 the order remains the same.     
+
+```{r}
+anova(lm(danceability ~ playlist_genre + musical_positiveness,data = temp))
+```
+
+For playlist genre, P value is too small, so we reject the hypothesis that the four playlist genres have equal population means. 
+
+For valence, P value is too small, so we reject the hypothesis that the four playlist genres have equal population means.
+
+This implies that playlist genre and musical_positiveness (valence) is a significant factor that changes the danceability.  Thus we reject the hypothesis that the population means among different playlist genres and valences are equal. 
+
